@@ -6,6 +6,8 @@ public class TeacherAI : MonoBehaviour
     public enum State { Away, Warning, Looking }
 
     public State Current { get; private set; } = State.Away;
+    public event System.Action<State> StateChanged;
+
     public bool IsLooking => Current == State.Looking;
     public bool IsWarning => Current == State.Warning;
 
@@ -71,5 +73,6 @@ public class TeacherAI : MonoBehaviour
                 timer = RandomAway();
                 break;
         }
+        StateChanged?.Invoke(Current);
     }
 }

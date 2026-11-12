@@ -1,8 +1,8 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// Nespracuvame TMP_InputField: znaky citame priamo z klavesnice,
-// ale iba ak hrac drzi lave tlacidlo mysi.
+// Pisanie funguje stale. Lave tlacidlo mysi iba prepina, co je vidiet:
+// drzis = zadanie, pustis = tvoj napisany text.
 public class TypingController : MonoBehaviour
 {
     [Header("References")]
@@ -13,14 +13,31 @@ public class TypingController : MonoBehaviour
     string typed = "";
     Keyboard subscribedKeyboard;
 
-    void OnEnable()
+    void Awake()
     {
-        subscribedKeyboard = Keyboard.current;
-        if (subscribedKeyboard != null)
-            subscribedKeyboard.onTextInput += OnTextInput;
+        var missing = new System.Collections.Generic.List<string>();
+        if (teacher == null) missing.Add("Teacher");
+        if (game == null) missing.Add("Game");
+        if (ui == null) missing.Add("Ui");
+
+        if (missing.Count > 0)
+            Debug.LogError("TypingController na '" + gameObject.name + "': nepriradene: "
+                + string.Join(", ", missing), this);
     }
 
-    void OnDisable()
+    void OnEnable() => Subscribe();
+
+    void OnDisable() => Unsubscribe();
+
+    void Subscribe()
+    {
+        if (Keyboard.current == null || subscribedKeyboard == Keyboard.current) return;
+        Unsubscribe();
+        subscribedKeyboard = Keyboard.current;
+        subscribedKeyboard.onTextInput += OnTextInput;
+    }
+
+    void Unsubscribe()
     {
         if (subscribedKeyboard != null)
             subscribedKeyboard.onTextInput -= OnTextInput;
@@ -29,9 +46,30 @@ public class TypingController : MonoBehaviour
 
     void Update()
     {
-        // Backspace nemusi byt doruceny ako textovy znak cez onTextInput.
+        Subscribe();
+
         if (Keyboard.current != null && Keyboard.current.backspaceKey.wasPressedThisFrame)
             TryBackspace();
+
+        UpdateVisibility();
+    }
+
+    void UpdateVisibility()
+    {
+        if (ui == null || game == null) return;
+
+        if (game.State == GameManager.GameState.Playing)
+        {
+            bool holding = Mouse.current != null && Mouse.current.leftButton.isPressed;
+            ui.SetPromptVisible(holding);
+            game.LogPromptVisibility(holding);
+        }
+        else
+        {
+            // Mimo hry (menu, vysledky) nechaj oba texty zapnute.
+            if (ui.taskText != null) ui.taskText.enabled = true;
+            if (ui.typedText != null) ui.typedText.enabled = true;
+        }
     }
 
     public void ResetTyping()
@@ -44,16 +82,15 @@ public class TypingController : MonoBehaviour
     bool CanType()
     {
         return game != null && teacher != null && ui != null
-            && game.State == GameManager.GameState.Playing
-            && Mouse.current != null
-            && Mouse.current.leftButton.isPressed;
+            && game.State == GameManager.GameState.Playing;
     }
 
     void OnTextInput(char c)
     {
-        // Enter, Tab, Backspace a ine riadiace znaky nepatria do vety.
         if (char.IsControl(c)) return;
         if (!CanType()) return;
+        game.LogInput(false, !teacher.IsLooking && typed.Length < game.CurrentSentence.Length
+            && game.CurrentSentence[typed.Length] == c);
         if (LoseIfTeacherIsLooking()) return;
 
         string target = game.CurrentSentence;
@@ -71,6 +108,7 @@ public class TypingController : MonoBehaviour
     void TryBackspace()
     {
         if (!CanType() || typed.Length == 0) return;
+        game.LogInput(true, !teacher.IsLooking);
         if (LoseIfTeacherIsLooking()) return;
 
         typed = typed.Substring(0, typed.Length - 1);
@@ -91,7 +129,6 @@ public class TypingController : MonoBehaviour
 
         ui.ShowTyped(typed, target);
 
-        // Ak sme sa prave stali podozrivymi a prehrali, dalsi level nespustame.
         if (game.State == GameManager.GameState.Playing && typed == target)
             game.CompleteTask();
     }

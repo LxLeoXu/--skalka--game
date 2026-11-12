@@ -7,10 +7,10 @@ public class UIManager : MonoBehaviour
 {
     [Header("Ucitel - vyber SpriteRenderer ALEBO Image")]
     public TeacherAI teacher;
-    public SpriteRenderer teacherSprite; // ak je ucitel sprite vo svete
-    public Image teacherImage;          // ak je ucitel UI Image v Canvase
-    public Sprite awaySprite;           // volitelne
-    public Sprite lookingSprite;        // volitelne
+    public SpriteRenderer teacherSprite;
+    public Image teacherImage;
+    public Sprite awaySprite;
+    public Sprite lookingSprite;
     public Color awayColor = new Color(0.3f, 0.8f, 0.3f);
     public Color warningColor = new Color(1f, 0.6f, 0.1f);
     public Color lookingColor = new Color(0.9f, 0.1f, 0.1f);
@@ -23,16 +23,21 @@ public class UIManager : MonoBehaviour
     public TMP_Text messageText;
 
     [Header("Volitelne ukazovatele")]
-    public Image suspicionFill;  // Image Type = Filled, Horizontal
-    public Image redBorder;     // cerveny celoplosny Image, vypni Raycast Target
+    public Image suspicionFill;
+    public Image redBorder;     // vypni Raycast Target
+
+    [Header("Menu obtiaznosti")]
+    public GameObject menuPanel; // panel s 3 tlacidlami
 
     float suspicion;
 
     void Awake()
     {
-        // Zadanie je doslovny text; pripadne specialne znaky sa nesmu tvarit ako TMP tagy.
         if (taskText != null) taskText.richText = false;
         if (typedText != null) typedText.richText = true;
+
+        if (menuPanel == null)
+            Debug.LogWarning("UIManager: Menu Panel nie je priradeny - menu sa nebude dat skryt!", this);
     }
 
     void Update()
@@ -89,6 +94,25 @@ public class UIManager : MonoBehaviour
         redBorder.color = c;
     }
 
+    public void ShowMenu(bool show)
+    {
+        if (menuPanel != null)
+        {
+            menuPanel.SetActive(show);
+            if (show) menuPanel.transform.SetAsLastSibling(); // vykresli navrchu
+        }
+
+        if (show)
+        {
+            if (taskText != null) taskText.text = "";
+            if (typedText != null) typedText.text = "";
+            if (gradeText != null) gradeText.text = "";
+            if (messageText != null) messageText.text = "";
+            if (timerText != null) timerText.text = "";
+            SetSuspicion(0f);
+        }
+    }
+
     public void ShowTask(string sentence, int number, int total)
     {
         if (taskText != null) taskText.text = sentence;
@@ -136,4 +160,11 @@ public class UIManager : MonoBehaviour
     {
         if (messageText != null) messageText.text = text;
     }
+	
+	public void SetPromptVisible(bool showPrompt)
+	{
+    if (taskText != null) taskText.enabled = showPrompt;
+    if (typedText != null) typedText.enabled = !showPrompt;
+	}
+	
 }
